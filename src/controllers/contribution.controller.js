@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { Contribution } from "../models/contribution.model.js";
+import { updateFestivalStats } from "../utils/utility.js";
 
 // GET all contributions with filters and pagination
 export const getAllContributions = asyncHandler(async (req, res) => {
@@ -182,6 +183,12 @@ export const createContribution = asyncHandler(async (req, res) => {
 
   const newContribution = await Contribution.create(data);
 
+  if (!newContribution) {
+    return res.status(400).json(new ApiResponse(400, {}, "Failed to create contribution"));
+  }
+
+  await updateFestivalStats(newContribution?.festivalId);
+
   res.status(201).json(new ApiResponse(201, newContribution, "Contribution recorded successfully"));
 });
 
@@ -195,6 +202,8 @@ export const updateContribution = asyncHandler(async (req, res) => {
     return res.status(404).json(new ApiResponse(404, {}, "Contribution not found"));
   }
 
+  await updateFestivalStats(updated?.festivalId);
+
   res.status(200).json(new ApiResponse(200, updated, `Contribution ${id} updated successfully`));
 });
 
@@ -206,6 +215,8 @@ export const deleteContribution = asyncHandler(async (req, res) => {
   if (!deleted) {
     return res.status(404).json(new ApiResponse(404, {}, "Contribution not found"));
   }
+
+  await updateFestivalStats(deleted?.festivalId);
 
   res.status(200).json(new ApiResponse(200, null, `Contribution ${id} deleted`));
 });

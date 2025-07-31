@@ -34,7 +34,13 @@ export const createFestival = asyncHandler(async (req, res) => {
   const newFestival = await Festival.create({
     name,
     year,
-    openingBalance: openingBalance ?? 0,
+    stats: {
+      openingBalance: openingBalance ?? 0,
+      totalCollected: 0,
+      pendingAmount: 0,
+      totalExpenses: 0,
+      currentBalance: openingBalance ?? 0, // current = opening initially
+    },
   });
 
   res.status(201).json(new ApiResponse(201, newFestival, "Festival created successfully"));
@@ -49,7 +55,6 @@ export const updateFestival = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Festival not found");
   }
 
-  // Check for duplicate if name or year is being updated
   if ((name && name !== festival.name) || (year && year !== festival.year)) {
     const duplicate = await Festival.findOne({
       name: name ?? festival.name,
@@ -62,7 +67,13 @@ export const updateFestival = asyncHandler(async (req, res) => {
 
   festival.name = name ?? festival.name;
   festival.year = year ?? festival.year;
-  festival.openingBalance = openingBalance ?? festival.openingBalance;
+
+  if (openingBalance !== undefined) {
+    festival.stats.openingBalance = openingBalance;
+
+    const { totalCollected, totalExpenses } = festival.stats;
+    festival.stats.currentBalance = openingBalance + totalCollected - totalExpenses;
+  }
 
   await festival.save();
 

@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 import { Expense } from "../models/expense.model.js";
-import { Festival } from "../models/festival.model.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
+import { updateFestivalStats } from "../utils/utility.js";
 
 export const createExpense = asyncHandler(async (req, res) => {
   const { festivalId, category, amount, description, date } = req.body;
@@ -19,6 +19,8 @@ export const createExpense = asyncHandler(async (req, res) => {
     description,
     date,
   });
+
+  await updateFestivalStats(expense?.festivalId);
 
   res.status(201).json(new ApiResponse(201, expense, "Expense created successfully"));
 });
@@ -185,6 +187,8 @@ export const updateExpense = asyncHandler(async (req, res) => {
 
   await expense.save();
 
+  await updateFestivalStats(expense?.festivalId);
+
   res.status(200).json(new ApiResponse(200, expense, `Expense ${id} updated successfully`));
 });
 
@@ -197,6 +201,8 @@ export const deleteExpense = asyncHandler(async (req, res) => {
   }
 
   await expense.deleteOne();
+
+  await updateFestivalStats(expense?.festivalId);
 
   res.status(200).json(new ApiResponse(200, null, `Expense ${id} deleted successfully`));
 });

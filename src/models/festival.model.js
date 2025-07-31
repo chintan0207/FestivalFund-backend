@@ -4,7 +4,13 @@ const festivalSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     year: { type: Number, required: true },
-    openingBalance: { type: Number, default: 0 },
+    stats: {
+      openingBalance: { type: Number, default: 0 },
+      totalCollected: { type: Number, default: 0 },
+      pendingAmount: { type: Number, default: 0 },
+      totalExpenses: { type: Number, default: 0 },
+      currentBalance: { type: Number, default: 0 },
+    },
   },
   { timestamps: true },
 );
