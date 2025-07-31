@@ -8,7 +8,7 @@ const contributorSchema = new mongoose.Schema(
     category: {
       type: String,
       enum: AvailableContributorCategories,
-      default: ContributorCategoryEnum.OTHER,
+      default: ContributorCategoryEnum.PARENT,
     },
     festivalId: { type: mongoose.Schema.Types.ObjectId, ref: "Festival", required: true },
   },

@@ -33,8 +33,8 @@ export const AvailableExpenseCategories = Object.values(ExpenseCategoryEnum);
 
 export const ContributorCategoryEnum = {
   PARENT: "Parents",
-  YOUNG_BOY: "Boys",
-  OTHER: "Other",
+  BOY: "Boys",
+  GIRL: "Girls",
 };
 
 export const AvailableContributorCategories = Object.values(ContributorCategoryEnum);
