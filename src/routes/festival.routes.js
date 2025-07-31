@@ -6,13 +6,14 @@ import {
   updateFestival,
   deleteFestival,
 } from "../controllers/festival.controller.js";
+import { verifyJwt } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/", getAllFestivals);
-router.get("/:id", getFestivalById);
-router.post("/", createFestival);
-router.patch("/:id", updateFestival);
-router.delete("/:id", deleteFestival);
+router.get("/", verifyJwt, getAllFestivals);
+router.get("/:id", verifyJwt, getFestivalById);
+router.post("/", verifyJwt, createFestival);
+router.patch("/:id", verifyJwt, updateFestival);
+router.delete("/:id", verifyJwt, deleteFestival);
 
 export default router;
