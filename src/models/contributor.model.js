@@ -4,6 +4,7 @@ import { ContributorCategoryEnum, AvailableContributorCategories } from "../util
 const contributorSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
+    phoneNumber: { type: String },
     address: { type: String },
     category: {
       type: String,

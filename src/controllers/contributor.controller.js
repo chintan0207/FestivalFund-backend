@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 import { ApiError } from "../utils/api-error.js";
 
 export const createContributor = asyncHandler(async (req, res) => {
-  const { name, address, category, festivalId } = req.body;
+  const { name, address, category, festivalId, phoneNumber } = req.body;
 
   if (!name || !festivalId) {
     throw new ApiError(400, "Name and festivalId are required");
@@ -16,6 +16,7 @@ export const createContributor = asyncHandler(async (req, res) => {
     address,
     category,
     festivalId,
+    phoneNumber,
   });
 
   res.status(201).json(new ApiResponse(201, contributor, "Contributor created successfully"));
@@ -66,6 +67,7 @@ export const getAllContributors = asyncHandler(async (req, res) => {
             { name: { $regex: search, $options: "i" } },
             { address: { $regex: search, $options: "i" } },
             { category: { $regex: search, $options: "i" } },
+            { phoneNumber: { $regex: search, $options: "i" } },
           ],
         }
       : {};
@@ -90,6 +92,7 @@ export const getAllContributors = asyncHandler(async (req, res) => {
         $project: {
           name: 1,
           address: 1,
+          phoneNumber: 1,
           category: 1,
           createdAt: 1,
           updatedAt: 1,
@@ -170,7 +173,7 @@ export const getAllContributors = asyncHandler(async (req, res) => {
 
 export const updateContributor = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, address, category } = req.body;
+  const { name, address, category, phoneNumber } = req.body;
 
   const contributor = await Contributor.findById(id);
   if (!contributor) {
@@ -180,6 +183,7 @@ export const updateContributor = asyncHandler(async (req, res) => {
   contributor.name = name ?? contributor.name;
   contributor.address = address ?? contributor.address;
   contributor.category = category ?? contributor.category;
+  contributor.phoneNumber = phoneNumber ?? contributor.phoneNumber;
 
   await contributor.save();
 
