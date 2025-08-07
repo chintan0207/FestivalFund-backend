@@ -160,7 +160,7 @@ export const getAllContributions = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         { contributions, ...paginationData },
-        contributions.length > 0 ? "Contributions fetched successfully" : "No contributions found",
+        contributions.length > 0 ? "Contributions fetched " : "No contributions found",
       ),
     );
 });
@@ -189,7 +189,7 @@ export const createContribution = asyncHandler(async (req, res) => {
 
   await updateFestivalStats(newContribution?.festivalId);
 
-  res.status(201).json(new ApiResponse(201, newContribution, "Contribution recorded successfully"));
+  res.status(201).json(new ApiResponse(201, newContribution, "Contribution recorded "));
 });
 
 export const updateContribution = asyncHandler(async (req, res) => {
@@ -204,7 +204,7 @@ export const updateContribution = asyncHandler(async (req, res) => {
 
   await updateFestivalStats(updated?.festivalId);
 
-  res.status(200).json(new ApiResponse(200, updated, `Contribution ${id} updated successfully`));
+  res.status(200).json(new ApiResponse(200, updated, `Contribution  updated `));
 });
 
 export const deleteContribution = asyncHandler(async (req, res) => {
@@ -218,7 +218,7 @@ export const deleteContribution = asyncHandler(async (req, res) => {
 
   await updateFestivalStats(deleted?.festivalId);
 
-  res.status(200).json(new ApiResponse(200, null, `Contribution ${id} deleted`));
+  res.status(200).json(new ApiResponse(200, null, `Contribution  deleted`));
 });
 
 // GENERATE slip for a contribution
@@ -236,5 +236,5 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
   // In real use-case, generate PDF or print-ready format
   res
     .status(200)
-    .json(new ApiResponse(200, { slip: contribution }, `Slip generated for contribution ${id}`));
+    .json(new ApiResponse(200, { slip: contribution }, `Slip generated for contribution `));
 });

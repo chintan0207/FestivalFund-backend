@@ -47,7 +47,7 @@ export const updateUser = asyncHandler(async (req, res) => {
   delete updatedUser.password;
   delete updatedUser.refreshToken;
 
-  res.status(200).json(new ApiResponse(200, updatedUser, `User ${id} updated`));
+  res.status(200).json(new ApiResponse(200, updatedUser, `User updated`));
 });
 
 export const deleteUser = asyncHandler(async (req, res) => {
@@ -60,5 +60,5 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
   await user.deleteOne();
 
-  res.status(200).json(new ApiResponse(200, null, `User ${id} deleted`));
+  res.status(200).json(new ApiResponse(200, null, `User deleted`));
 });

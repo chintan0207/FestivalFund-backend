@@ -19,7 +19,7 @@ export const createContributor = asyncHandler(async (req, res) => {
     phoneNumber,
   });
 
-  res.status(201).json(new ApiResponse(201, contributor, "Contributor created successfully"));
+  res.status(201).json(new ApiResponse(201, contributor, "Contributor created "));
 });
 
 export const getContributorById = asyncHandler(async (req, res) => {
@@ -34,7 +34,7 @@ export const getContributorById = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Contributor not found");
   }
 
-  res.status(200).json(new ApiResponse(200, contributor, `Fetched contributor ${id}`));
+  res.status(200).json(new ApiResponse(200, contributor, `Fetched contributor`));
 });
 
 export const getAllContributors = asyncHandler(async (req, res) => {
@@ -162,7 +162,7 @@ export const getAllContributors = asyncHandler(async (req, res) => {
         new ApiResponse(
           200,
           { contributors, ...paginationData },
-          contributors.length > 0 ? "Contributors fetched successfully" : "No contributors found",
+          contributors.length > 0 ? "Contributors fetched " : "No contributors found",
         ),
       );
   } catch (error) {
@@ -187,7 +187,7 @@ export const updateContributor = asyncHandler(async (req, res) => {
 
   await contributor.save();
 
-  res.status(200).json(new ApiResponse(200, contributor, `Contributor ${id} updated successfully`));
+  res.status(200).json(new ApiResponse(200, contributor, `Contributor updated `));
 });
 
 export const deleteContributor = asyncHandler(async (req, res) => {
@@ -200,5 +200,5 @@ export const deleteContributor = asyncHandler(async (req, res) => {
 
   await contributor.deleteOne();
 
-  res.status(200).json(new ApiResponse(200, null, `Contributor ${id} deleted successfully`));
+  res.status(200).json(new ApiResponse(200, null, `Contributor deleted `));
 });

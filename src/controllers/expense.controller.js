@@ -22,7 +22,7 @@ export const createExpense = asyncHandler(async (req, res) => {
 
   await updateFestivalStats(expense?.festivalId);
 
-  res.status(201).json(new ApiResponse(201, expense, "Expense created successfully"));
+  res.status(201).json(new ApiResponse(201, expense, "Expense created "));
 });
 
 export const getAllExpenses = asyncHandler(async (req, res) => {
@@ -155,7 +155,7 @@ export const getAllExpenses = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         { expenses, ...paginationData },
-        expenses.length > 0 ? "Expenses fetched successfully" : "No expenses found",
+        expenses.length > 0 ? "Expenses fetched " : "No expenses found",
       ),
     );
 });
@@ -189,7 +189,7 @@ export const updateExpense = asyncHandler(async (req, res) => {
 
   await updateFestivalStats(expense?.festivalId);
 
-  res.status(200).json(new ApiResponse(200, expense, `Expense ${id} updated successfully`));
+  res.status(200).json(new ApiResponse(200, expense, `Expense updated `));
 });
 
 export const deleteExpense = asyncHandler(async (req, res) => {
@@ -204,5 +204,5 @@ export const deleteExpense = asyncHandler(async (req, res) => {
 
   await updateFestivalStats(expense?.festivalId);
 
-  res.status(200).json(new ApiResponse(200, null, `Expense ${id} deleted successfully`));
+  res.status(200).json(new ApiResponse(200, null, `Expense deleted `));
 });
