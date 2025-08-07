@@ -44,6 +44,7 @@ export const getAllContributors = asyncHandler(async (req, res) => {
     sortOrder = "desc",
     sortField = "createdAt",
     search = "",
+    category,
     festivalId,
   } = req.query;
 
@@ -59,6 +60,7 @@ export const getAllContributors = asyncHandler(async (req, res) => {
 
     const matchStage = {
       ...(festivalId && { festivalId: new mongoose.Types.ObjectId(festivalId) }),
+      ...(category && { category }),
     };
 
     const searchStage = search.trim()
