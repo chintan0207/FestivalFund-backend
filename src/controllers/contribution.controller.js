@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { Contribution } from "../models/contribution.model.js";
 import { updateFestivalStats } from "../utils/utility.js";
+import { Contributor } from "../models/contributor.model.js";
 
 // GET all contributions with filters and pagination
 export const getAllContributions = asyncHandler(async (req, res) => {
@@ -79,6 +80,11 @@ export const getAllContributions = asyncHandler(async (req, res) => {
                 { "contributor.name": { $regex: search, $options: "i" } },
                 { "contributor.address": { $regex: search, $options: "i" } },
                 { itemName: { $regex: search, $options: "i" } },
+                {
+                  $expr: {
+                    $regexMatch: { input: { $toString: "$amount" }, regex: search, options: "i" },
+                  },
+                },
               ],
             },
           },
@@ -179,32 +185,155 @@ export const getContributionById = asyncHandler(async (req, res) => {
 });
 
 export const createContribution = asyncHandler(async (req, res) => {
-  const data = req.body;
+  const { contributorId, name, category, phoneNumber, address, festivalId, ...contributionData } =
+    req.body;
 
-  const newContribution = await Contribution.create(data);
+  let finalContributorId = contributorId;
+  console.log("    finalContributorId:", finalContributorId);
+  // If contributorId not provided, create/find contributor
+  if (!finalContributorId && name && category && festivalId) {
+    let contributor = await Contributor.findOne({
+      name: name.trim(),
+      category,
+      festivalId,
+    });
 
-  if (!newContribution) {
+    if (!contributor) {
+      contributor = await Contributor.create({
+        name: name.trim(),
+        category,
+        phoneNumber: phoneNumber || "",
+        address: address || "",
+        festivalId,
+      });
+    }
+    finalContributorId = contributor._id;
+  }
+
+  if (!finalContributorId) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, {}, "Contributor ID or valid contributor details are required"));
+  }
+
+  const contribution = await Contribution.create({
+    ...contributionData,
+    contributorId: finalContributorId,
+    festivalId,
+  });
+
+  const populatedContribution = await Contribution.findById(contribution._id)
+    .populate({
+      path: "contributorId",
+      select: "name category phoneNumber",
+    })
+    .populate({
+      path: "festivalId",
+      select: "name year",
+    })
+    .lean();
+
+  if (!populatedContribution) {
     return res.status(400).json(new ApiResponse(400, {}, "Failed to create contribution"));
   }
 
-  await updateFestivalStats(newContribution?.festivalId);
+  const responseData = {
+    ...populatedContribution,
+    contributor: populatedContribution.contributorId,
+    festival: populatedContribution.festivalId,
+  };
+  delete responseData.contributorId;
+  delete responseData.festivalId;
 
-  res.status(201).json(new ApiResponse(201, newContribution, "Contribution recorded "));
+  // get updated stats
+  const updatedStats = await updateFestivalStats(festivalId);
+
+  res.status(201).json(
+    new ApiResponse(
+      201,
+      {
+        contribution: responseData,
+        festivalStats: updatedStats, // <-- Send updated stats
+      },
+      "Contribution recorded",
+    ),
+  );
 });
 
 export const updateContribution = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const update = req.body;
+  const { contributorId, name, category, phoneNumber, address, festivalId, ...updateData } =
+    req.body;
 
-  const updated = await Contribution.findByIdAndUpdate(id, update, { new: true });
+  let finalContributorId = contributorId;
+
+  // If no contributorId, find or create contributor
+  if (!finalContributorId && name && category && festivalId) {
+    let contributor = await Contributor.findOne({
+      name: name.trim(),
+      category,
+      festivalId,
+    });
+
+    if (!contributor) {
+      contributor = await Contributor.create({
+        name: name.trim(),
+        category,
+        phoneNumber: phoneNumber || "",
+        address: address || "",
+        festivalId,
+      });
+    }
+
+    finalContributorId = contributor._id;
+  }
+
+  if (!finalContributorId) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, {}, "Contributor ID or valid contributor details are required"));
+  }
+
+  const updated = await Contribution.findByIdAndUpdate(
+    id,
+    { ...updateData, contributorId: finalContributorId, festivalId },
+    { new: true },
+  )
+    .populate({
+      path: "contributorId",
+      select: "name category phoneNumber",
+    })
+    .populate({
+      path: "festivalId",
+      select: "name year",
+    })
+    .lean();
 
   if (!updated) {
     return res.status(404).json(new ApiResponse(404, {}, "Contribution not found"));
   }
 
-  await updateFestivalStats(updated?.festivalId);
+  const responseData = {
+    ...updated,
+    contributor: updated.contributorId,
+    festival: updated.festivalId,
+  };
+  delete responseData.contributorId;
+  delete responseData.festivalId;
 
-  res.status(200).json(new ApiResponse(200, updated, `Contribution  updated `));
+  // ✅ Return updated festival stats as well
+  const updatedStats = await updateFestivalStats(festivalId);
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        contribution: responseData,
+        festivalStats: updatedStats,
+      },
+      "Contribution updated",
+    ),
+  );
 });
 
 export const deleteContribution = asyncHandler(async (req, res) => {
@@ -216,9 +345,17 @@ export const deleteContribution = asyncHandler(async (req, res) => {
     return res.status(404).json(new ApiResponse(404, {}, "Contribution not found"));
   }
 
-  await updateFestivalStats(deleted?.festivalId);
+  const updatedStats = await updateFestivalStats(deleted?.festivalId);
 
-  res.status(200).json(new ApiResponse(200, null, `Contribution  deleted`));
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        festivalStats: updatedStats,
+      },
+      "Contribution deleted",
+    ),
+  );
 });
 
 // GENERATE slip for a contribution
