@@ -5,8 +5,6 @@ import { Festival } from "../models/festival.model.js";
 import { ContributionStatusEnum } from "./constants.js";
 
 export const updateFestivalStats = async (festivalId) => {
-  console.log("📊 updateFestivalStats called for festivalId:", festivalId);
-
   const [deposited, pending, expenses] = await Promise.all([
     Contribution.aggregate([
       {
@@ -50,6 +48,5 @@ export const updateFestivalStats = async (festivalId) => {
 
   await Festival.findByIdAndUpdate(festivalId, { stats: updatedStats });
 
-  console.log("✅ Festival stats updated successfully.");
-  return updatedStats; // <-- Now returning stats
+  return updatedStats;
 };

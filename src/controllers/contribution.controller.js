@@ -54,6 +54,7 @@ export const getAllContributions = asyncHandler(async (req, res) => {
 
   const pipeline = [
     { $match: matchStage },
+
     {
       $lookup: {
         from: "contributors",
@@ -63,6 +64,7 @@ export const getAllContributions = asyncHandler(async (req, res) => {
       },
     },
     { $unwind: { path: "$contributor", preserveNullAndEmptyArrays: true } },
+
     {
       $lookup: {
         from: "festivals",
@@ -72,48 +74,51 @@ export const getAllContributions = asyncHandler(async (req, res) => {
       },
     },
     { $unwind: { path: "$festival", preserveNullAndEmptyArrays: true } },
-    ...(search.trim()
-      ? [
+  ];
+
+  if (search.trim()) {
+    pipeline.push({
+      $match: {
+        $or: [
+          { "contributor.name": { $regex: search, $options: "i" } },
+          { "contributor.address": { $regex: search, $options: "i" } },
+          { itemName: { $regex: search, $options: "i" } },
           {
-            $match: {
-              $or: [
-                { "contributor.name": { $regex: search, $options: "i" } },
-                { "contributor.address": { $regex: search, $options: "i" } },
-                { itemName: { $regex: search, $options: "i" } },
-                {
-                  $expr: {
-                    $regexMatch: { input: { $toString: "$amount" }, regex: search, options: "i" },
-                  },
-                },
-              ],
+            $expr: {
+              $regexMatch: { input: { $toString: "$amount" }, regex: search, options: "i" },
             },
           },
-        ]
-      : []),
-    {
-      $project: {
-        type: 1,
-        status: 1,
-        date: 1,
-        amount: 1,
-        itemName: 1,
-        quantity: 1,
-        estimatedValue: 1,
-        contributorId: 1,
-        festivalId: 1,
-        "contributor.name": 1,
-        "contributor.category": 1,
-        "contributor.phoneNumber": 1,
-        "festival.name": 1,
-        "festival.year": 1,
+        ],
       },
+    });
+  }
+
+  pipeline.push({
+    $project: {
+      type: 1,
+      status: 1,
+      date: 1,
+      amount: 1,
+      itemName: 1,
+      quantity: 1,
+      estimatedValue: 1,
+      contributorId: 1,
+      festivalId: 1,
+      "contributor.name": 1,
+      "contributor.category": 1,
+      "contributor.phoneNumber": 1,
+      "festival.name": 1,
+      "festival.year": 1,
+      createdAt: 1,
+      updatedAt: 1,
     },
-    {
-      $sort: {
-        [sortField]: sortDirection,
-      },
-    },
-  ];
+  });
+
+  if (sortField === "name") {
+    pipeline.push({ $sort: { "contributor.name": sortDirection } });
+  } else {
+    pipeline.push({ $sort: { [sortField]: sortDirection } });
+  }
 
   if (usePagination) {
     pipeline.push({
@@ -124,9 +129,7 @@ export const getAllContributions = asyncHandler(async (req, res) => {
             $addFields: {
               page: pageNumber,
               limit: limitNumber,
-              totalPages: {
-                $ceil: { $divide: ["$total", limitNumber] },
-              },
+              totalPages: { $ceil: { $divide: ["$total", limitNumber] } },
             },
           },
         ],
@@ -135,6 +138,7 @@ export const getAllContributions = asyncHandler(async (req, res) => {
     });
   }
 
+  // Run aggregation
   const result = await Contribution.aggregate(pipeline).collation({
     locale: "en",
     strength: 2,
@@ -166,11 +170,10 @@ export const getAllContributions = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         { contributions, ...paginationData },
-        contributions.length > 0 ? "Contributions fetched " : "No contributions found",
+        contributions.length > 0 ? "Contributions fetched" : "No contributions found",
       ),
     );
 });
-
 export const getContributionById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const contribution = await Contribution.findById(id)
@@ -189,7 +192,7 @@ export const createContribution = asyncHandler(async (req, res) => {
     req.body;
 
   let finalContributorId = contributorId;
-  console.log("    finalContributorId:", finalContributorId);
+
   // If contributorId not provided, create/find contributor
   if (!finalContributorId && name && category && festivalId) {
     let contributor = await Contributor.findOne({
@@ -267,7 +270,6 @@ export const updateContribution = asyncHandler(async (req, res) => {
 
   let finalContributorId = contributorId;
 
-  // If no contributorId, find or create contributor
   if (!finalContributorId && name && category && festivalId) {
     let contributor = await Contributor.findOne({
       name: name.trim(),
@@ -298,37 +300,62 @@ export const updateContribution = asyncHandler(async (req, res) => {
     id,
     { ...updateData, contributorId: finalContributorId, festivalId },
     { new: true },
-  )
-    .populate({
-      path: "contributorId",
-      select: "name category phoneNumber",
-    })
-    .populate({
-      path: "festivalId",
-      select: "name year",
-    })
-    .lean();
+  );
 
   if (!updated) {
     return res.status(404).json(new ApiResponse(404, {}, "Contribution not found"));
   }
 
-  const responseData = {
-    ...updated,
-    contributor: updated.contributorId,
-    festival: updated.festivalId,
-  };
-  delete responseData.contributorId;
-  delete responseData.festivalId;
+  const [contribution] = await Contribution.aggregate([
+    { $match: { _id: updated._id } },
+    {
+      $lookup: {
+        from: "contributors",
+        localField: "contributorId",
+        foreignField: "_id",
+        as: "contributor",
+      },
+    },
+    { $unwind: "$contributor" },
+    {
+      $lookup: {
+        from: "festivals",
+        localField: "festivalId",
+        foreignField: "_id",
+        as: "festival",
+      },
+    },
+    { $unwind: "$festival" },
+    {
+      $project: {
+        _id: 1,
+        contributorId: "$contributor._id",
+        festivalId: "$festival._id",
+        type: 1,
+        status: 1,
+        date: 1,
+        amount: 1,
+        itemName: 1,
+        contributor: {
+          name: "$contributor.name",
+          phoneNumber: "$contributor.phoneNumber",
+          category: "$contributor.category",
+        },
+        festival: {
+          name: "$festival.name",
+          year: "$festival.year",
+        },
+      },
+    },
+  ]);
 
-  // ✅ Return updated festival stats as well
   const updatedStats = await updateFestivalStats(festivalId);
 
   res.status(200).json(
     new ApiResponse(
       200,
       {
-        contribution: responseData,
+        contribution,
         festivalStats: updatedStats,
       },
       "Contribution updated",
