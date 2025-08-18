@@ -21,7 +21,6 @@ const connectDB = async () => {
         role: "admin",
       });
 
-      console.log("🚀 Default admin created: admin@festivalfund.com / admin123");
     }
   } catch (error) {
     console.error("❌ MongoDB connection failed:", error.message);
