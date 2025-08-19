@@ -1,8 +1,8 @@
 /* eslint-disable no-undef */
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import { User } from "../models/User.model.js";
 import { DB_NAME } from "../utils/constants.js";
+import { User } from "../models/User.model.js";
 
 dotenv.config();
 
