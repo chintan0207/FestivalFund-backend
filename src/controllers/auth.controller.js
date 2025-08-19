@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
-import { User } from "../models/User.model.js";
+import { User } from "../models/user.model.js";
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -12,7 +12,6 @@ const generateAccessAndRefreshToken = async (userId) => {
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
 
-    console.log(`Generated access and refresh tokens for user: ${userId}`);
     return { accessToken, refreshToken };
   } catch (error) {
     console.log("Error generating tokens:", error);
@@ -90,4 +89,26 @@ export const logOutUser = asyncHandler(async (req, res) => {
     .clearCookie("accessToken", options)
     .clearCookie("refreshToken", options)
     .json(new ApiResponse(200, {}, "Logged out"));
+});
+
+export const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+  if (!incomingRefreshToken) throw new ApiError(400, "Unauthorized");
+
+  try {
+    const decoded = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const user = await User.findById(decoded._id);
+    if (!user || incomingRefreshToken !== user.refreshToken) {
+      throw new ApiError(401, "Invalid refresh token");
+    }
+
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
+    const options = { httpOnly: true, secure: true };
+    res
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
+      .json(new ApiResponse(200, { accessToken, refreshToken }, "Token refreshed"));
+  } catch (err) {
+    throw new ApiError(401, err.message || "Invalid refresh token");
+  }
 });

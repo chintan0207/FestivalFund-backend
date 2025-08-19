@@ -25,6 +25,7 @@ export const AvailableContributionTypes = Object.values(ContributionTypeEnum);
 export const ExpenseCategoryEnum = {
   MAHAPRASAD: "Mahaprasad",
   DECORATION: "Decoration",
+  MANDAP: "Mandap",
   SOUND: "Sound",
   OTHER: "Other",
 };

@@ -3,6 +3,7 @@ import { ApiResponse } from "../utils/api-response.js";
 import { Expense } from "../models/expense.model.js";
 import { Contribution } from "../models/contribution.model.js";
 import { Festival } from "../models/festival.model.js";
+import { updateFestivalStats } from "../utils/utility.js";
 
 export const getFestivalReport = asyncHandler(async (req, res) => {
   const { festivalId } = req.params;
@@ -71,6 +72,7 @@ export const exportExpensesPdf = asyncHandler(async (req, res) => {
 });
 
 export const getFestivalStats = asyncHandler(async (req, res) => {
+  await updateFestivalStats(req.params.festivalId);
   const festival = await Festival.findById(req.params.festivalId).select("stats");
   if (!festival) {
     return res.status(404).json(new ApiResponse(404, {}, "Festival not found"));

@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
-import { User } from "../models/User.model.js";
+import { User } from "../models/user.model.js";
 
 export const getAllUsers = asyncHandler(async (req, res) => {
   const users = await User.find().select("-password -refreshToken");
@@ -47,7 +47,7 @@ export const updateUser = asyncHandler(async (req, res) => {
   delete updatedUser.password;
   delete updatedUser.refreshToken;
 
-  res.status(200).json(new ApiResponse(200, updatedUser, `User ${id} updated`));
+  res.status(200).json(new ApiResponse(200, updatedUser, `User updated`));
 });
 
 export const deleteUser = asyncHandler(async (req, res) => {
@@ -60,5 +60,5 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
   await user.deleteOne();
 
-  res.status(200).json(new ApiResponse(200, null, `User ${id} deleted`));
+  res.status(200).json(new ApiResponse(200, null, `User deleted`));
 });

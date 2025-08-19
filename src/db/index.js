@@ -1,8 +1,8 @@
 /* eslint-disable no-undef */
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import { User } from "../models/User.model.js";
 import { DB_NAME } from "../utils/constants.js";
+import { User } from "../models/user.model.js";
 
 dotenv.config();
 
@@ -20,8 +20,6 @@ const connectDB = async () => {
         password: "admin123",
         role: "admin",
       });
-
-      console.log("🚀 Default admin created: admin@festivalfund.com / admin123");
     }
   } catch (error) {
     console.error("❌ MongoDB connection failed:", error.message);

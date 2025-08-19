@@ -16,7 +16,7 @@ export const getFestivalById = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Festival not found");
   }
 
-  res.status(200).json(new ApiResponse(200, festival, `Fetched festival ${id}`));
+  res.status(200).json(new ApiResponse(200, festival, `Fetched festival`));
 });
 
 export const createFestival = asyncHandler(async (req, res) => {
@@ -43,7 +43,7 @@ export const createFestival = asyncHandler(async (req, res) => {
     },
   });
 
-  res.status(201).json(new ApiResponse(201, newFestival, "Festival created successfully"));
+  res.status(201).json(new ApiResponse(201, newFestival, "Festival created"));
 });
 
 export const updateFestival = asyncHandler(async (req, res) => {
@@ -77,7 +77,7 @@ export const updateFestival = asyncHandler(async (req, res) => {
 
   await festival.save();
 
-  res.status(200).json(new ApiResponse(200, festival, `Festival ${id} updated successfully`));
+  res.status(200).json(new ApiResponse(200, festival, `Festival updated`));
 });
 
 export const deleteFestival = asyncHandler(async (req, res) => {
@@ -90,5 +90,5 @@ export const deleteFestival = asyncHandler(async (req, res) => {
 
   await festival.deleteOne();
 
-  res.status(200).json(new ApiResponse(200, null, `Festival ${id} deleted successfully`));
+  res.status(200).json(new ApiResponse(200, null, `Festival deleted`));
 });
