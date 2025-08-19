@@ -11,15 +11,24 @@ export const createContributor = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Name and festivalId are required");
   }
 
-  const contributor = await Contributor.create({
-    name,
-    address,
-    category,
+  const existing = await Contributor.findOne({
     festivalId,
-    phoneNumber,
+    name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
   });
 
-  res.status(201).json(new ApiResponse(201, contributor, "Contributor created "));
+  if (existing) {
+    throw new ApiError(400, "Contributor with this name already exists in this festival");
+  }
+
+  const contributor = await Contributor.create({
+    name: name.trim(),
+    address: address?.trim() || "",
+    category,
+    festivalId,
+    phoneNumber: phoneNumber?.trim() || "",
+  });
+
+  res.status(201).json(new ApiResponse(201, contributor, "Contributor created successfully"));
 });
 
 export const getContributorById = asyncHandler(async (req, res) => {

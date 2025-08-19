@@ -16,6 +16,7 @@ export const getAllContributions = asyncHandler(async (req, res) => {
     festivalId,
     contributorId,
     status,
+    category,
     type,
     startDate,
     endDate,
@@ -64,7 +65,15 @@ export const getAllContributions = asyncHandler(async (req, res) => {
       },
     },
     { $unwind: { path: "$contributor", preserveNullAndEmptyArrays: true } },
-
+    ...(category
+      ? [
+          {
+            $match: {
+              "contributor.category": category,
+            },
+          },
+        ]
+      : []),
     {
       $lookup: {
         from: "festivals",
@@ -265,42 +274,9 @@ export const createContribution = asyncHandler(async (req, res) => {
 
 export const updateContribution = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { contributorId, name, category, phoneNumber, address, festivalId, ...updateData } =
-    req.body;
+  const updateData = req.body;
 
-  let finalContributorId = contributorId;
-
-  if (!finalContributorId && name && category && festivalId) {
-    let contributor = await Contributor.findOne({
-      name: name.trim(),
-      category,
-      festivalId,
-    });
-
-    if (!contributor) {
-      contributor = await Contributor.create({
-        name: name.trim(),
-        category,
-        phoneNumber: phoneNumber || "",
-        address: address || "",
-        festivalId,
-      });
-    }
-
-    finalContributorId = contributor._id;
-  }
-
-  if (!finalContributorId) {
-    return res
-      .status(400)
-      .json(new ApiResponse(400, {}, "Contributor ID or valid contributor details are required"));
-  }
-
-  const updated = await Contribution.findByIdAndUpdate(
-    id,
-    { ...updateData, contributorId: finalContributorId, festivalId },
-    { new: true },
-  );
+  const updated = await Contribution.findByIdAndUpdate(id, updateData, { new: true });
 
   if (!updated) {
     return res.status(404).json(new ApiResponse(404, {}, "Contribution not found"));
@@ -349,18 +325,13 @@ export const updateContribution = asyncHandler(async (req, res) => {
     },
   ]);
 
-  const updatedStats = await updateFestivalStats(festivalId);
+  const updatedStats = await updateFestivalStats(updated.festivalId);
 
-  res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        contribution,
-        festivalStats: updatedStats,
-      },
-      "Contribution updated",
-    ),
-  );
+  res
+    .status(200)
+    .json(
+      new ApiResponse(200, { contribution, festivalStats: updatedStats }, "Contribution updated"),
+    );
 });
 
 export const deleteContribution = asyncHandler(async (req, res) => {
