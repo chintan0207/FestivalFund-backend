@@ -13,8 +13,7 @@ import expenseRoutes from "./routes/expense.routes.js";
 import reportRoutes from "./routes/report.routes.js";
 
 const app = express();
-
-const allowedOrigins = ["http://localhost:5173", "https://festivalfund.live"];
+const allowedOrigins = ["http://localhost:5173", "https://yourfestivalapp.live","https://festivalfund-frontend.onrender.com"];
 
 app.use(
   cors({
