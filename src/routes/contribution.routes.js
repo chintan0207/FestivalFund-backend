@@ -11,11 +11,11 @@ import { verifyJwt } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/", verifyJwt, getAllContributions);
-router.get("/:id", verifyJwt, getContributionById);
-router.post("/", verifyJwt, createContribution);
-router.patch("/:id", verifyJwt, updateContribution);
-router.delete("/:id", verifyJwt, deleteContribution);
-router.get("/:id/slip", verifyJwt, generateContributionSlip);
+router.get("/", getAllContributions);
+router.get("/:id",  getContributionById);
+router.post("/",  createContribution);
+router.patch("/:id",  updateContribution);
+router.delete("/:id",  deleteContribution);
+router.get("/:id/slip",  generateContributionSlip);
 
 export default router;
