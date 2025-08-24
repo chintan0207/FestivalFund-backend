@@ -72,11 +72,11 @@ export const exportExpensesPdf = asyncHandler(async (req, res) => {
 });
 
 export const getFestivalStats = asyncHandler(async (req, res) => {
-  await updateFestivalStats(req.params.festivalId);
-  const festival = await Festival.findById(req.params.festivalId).select("stats");
-  if (!festival) {
-    return res.status(404).json(new ApiResponse(404, {}, "Festival not found"));
+  if (!req.params.festivalId) {
+    return res.status(400).json(new ApiResponse(400, {}, "Festival ID is required"));
   }
 
-  res.status(200).json(new ApiResponse(200, festival.stats, "Festival stats retrieved"));
+  const updatedStats = await updateFestivalStats(req.params.festivalId);
+
+  res.status(200).json(new ApiResponse(200, updatedStats, "Festival stats retrieved"));
 });

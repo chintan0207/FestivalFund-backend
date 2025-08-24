@@ -7,14 +7,7 @@ import { updateFestivalStats } from "../utils/utility.js";
 
 export const createExpense = asyncHandler(async (req, res) => {
   const { festivalId, category, amount, description, date } = req.body;
-  console.log(
-    "festivalId, category, amount, description, date",
-    festivalId,
-    category,
-    amount,
-    description,
-    date,
-  );
+
   if (!festivalId || !category || !amount) {
     throw new ApiError(400, "festivalId, category, and amount are required");
   }
@@ -27,18 +20,17 @@ export const createExpense = asyncHandler(async (req, res) => {
     date,
   });
 
-  const updatedStats = await updateFestivalStats(expense?.festivalId);
+  const updatedStats = await updateFestivalStats(festivalId);
 
-  res.status(201).json(
-    new ApiResponse(
-      201,
-      {
-        expense,
-        festivalStats: updatedStats,
-      },
-      "Expense created",
-    ),
-  );
+  res
+    .status(201)
+    .json(
+      new ApiResponse(
+        201,
+        { expense, festivalStats: updatedStats },
+        "Expense created successfully",
+      ),
+    );
 });
 
 export const getAllExpenses = asyncHandler(async (req, res) => {
@@ -196,25 +188,25 @@ export const updateExpense = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Expense not found");
   }
 
-  expense.category = category ?? expense.category;
-  expense.amount = amount ?? expense.amount;
-  expense.description = description ?? expense.description;
-  expense.date = date ?? expense.date;
+  // Update only provided fields
+  if (category !== undefined) expense.category = category;
+  if (amount !== undefined) expense.amount = amount;
+  if (description !== undefined) expense.description = description;
+  if (date !== undefined) expense.date = date;
 
   await expense.save();
 
-  const updatedStats = await updateFestivalStats(expense?.festivalId);
+  const updatedStats = await updateFestivalStats(expense.festivalId);
 
-  res.status(201).json(
-    new ApiResponse(
-      200,
-      {
-        expense,
-        festivalStats: updatedStats,
-      },
-      "Expense updated ",
-    ),
-  );
+  res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { expense, festivalStats: updatedStats },
+        "Expense updated successfully",
+      ),
+    );
 });
 
 export const deleteExpense = asyncHandler(async (req, res) => {
@@ -225,17 +217,13 @@ export const deleteExpense = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Expense not found");
   }
 
+  const festivalId = expense.festivalId;
+
   await expense.deleteOne();
 
-  const updatedStats = await updateFestivalStats(expense?.festivalId);
+  const updatedStats = await updateFestivalStats(festivalId);
 
-  res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        festivalStats: updatedStats,
-      },
-      "Expense deleted",
-    ),
-  );
+  res
+    .status(200)
+    .json(new ApiResponse(200, { festivalStats: updatedStats }, "Expense deleted successfully"));
 });
