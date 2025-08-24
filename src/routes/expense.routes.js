@@ -6,7 +6,6 @@ import {
   deleteExpense,
   getExpenseById,
 } from "../controllers/expense.controller.js";
-import { get } from "mongoose";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();

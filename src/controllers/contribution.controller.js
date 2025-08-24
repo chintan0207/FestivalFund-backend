@@ -265,7 +265,7 @@ export const createContribution = asyncHandler(async (req, res) => {
       201,
       {
         contribution: responseData,
-        festivalStats: updatedStats, // <-- Send updated stats
+        festivalStats: updatedStats, 
       },
       "Contribution recorded",
     ),

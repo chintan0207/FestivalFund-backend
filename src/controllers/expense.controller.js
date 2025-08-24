@@ -7,7 +7,14 @@ import { updateFestivalStats } from "../utils/utility.js";
 
 export const createExpense = asyncHandler(async (req, res) => {
   const { festivalId, category, amount, description, date } = req.body;
-
+  console.log(
+    "festivalId, category, amount, description, date",
+    festivalId,
+    category,
+    amount,
+    description,
+    date,
+  );
   if (!festivalId || !category || !amount) {
     throw new ApiError(400, "festivalId, category, and amount are required");
   }
@@ -20,9 +27,18 @@ export const createExpense = asyncHandler(async (req, res) => {
     date,
   });
 
-  await updateFestivalStats(expense?.festivalId);
+  const updatedStats = await updateFestivalStats(expense?.festivalId);
 
-  res.status(201).json(new ApiResponse(201, expense, "Expense created "));
+  res.status(201).json(
+    new ApiResponse(
+      201,
+      {
+        expense,
+        festivalStats: updatedStats,
+      },
+      "Expense created",
+    ),
+  );
 });
 
 export const getAllExpenses = asyncHandler(async (req, res) => {
@@ -187,9 +203,18 @@ export const updateExpense = asyncHandler(async (req, res) => {
 
   await expense.save();
 
-  await updateFestivalStats(expense?.festivalId);
+  const updatedStats = await updateFestivalStats(expense?.festivalId);
 
-  res.status(200).json(new ApiResponse(200, expense, `Expense updated `));
+  res.status(201).json(
+    new ApiResponse(
+      200,
+      {
+        expense,
+        festivalStats: updatedStats,
+      },
+      "Expense updated ",
+    ),
+  );
 });
 
 export const deleteExpense = asyncHandler(async (req, res) => {
@@ -202,7 +227,15 @@ export const deleteExpense = asyncHandler(async (req, res) => {
 
   await expense.deleteOne();
 
-  await updateFestivalStats(expense?.festivalId);
+  const updatedStats = await updateFestivalStats(expense?.festivalId);
 
-  res.status(200).json(new ApiResponse(200, null, `Expense deleted `));
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        festivalStats: updatedStats,
+      },
+      "Expense deleted",
+    ),
+  );
 });
