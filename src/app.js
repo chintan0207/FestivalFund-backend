@@ -13,11 +13,17 @@ import expenseRoutes from "./routes/expense.routes.js";
 import reportRoutes from "./routes/report.routes.js";
 
 const app = express();
-const allowedOrigins = ["http://localhost:5173", "https://yourfestivalapp.live","https://festivalfund-frontend.onrender.com"];
+const allowedOrigins = ["http://localhost:5173", "https://festivalfund-frontend.onrender.com"];
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
