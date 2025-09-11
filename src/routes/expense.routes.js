@@ -10,10 +10,10 @@ import { verifyJwt } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/", getAllExpenses);
-router.post("/", createExpense);
-router.patch("/:id", updateExpense);
-router.get("/:id", getExpenseById);
-router.delete("/:id", deleteExpense);
+router.get("/", verifyJwt, getAllExpenses);
+router.post("/", verifyJwt, createExpense);
+router.patch("/:id", verifyJwt, updateExpense);
+router.get("/:id", verifyJwt, getExpenseById);
+router.delete("/:id", verifyJwt, deleteExpense);
 
 export default router;
