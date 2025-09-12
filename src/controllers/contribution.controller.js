@@ -4,8 +4,7 @@ import { ApiResponse } from "../utils/api-response.js";
 import { Contribution } from "../models/contribution.model.js";
 import { updateFestivalStats } from "../utils/utility.js";
 import { Contributor } from "../models/contributor.model.js";
-import chromium from "chrome-aws-lambda";
-import puppeteer from "puppeteer-core";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
@@ -386,7 +385,7 @@ const sendWhatsAppReceipt = async (contributor, festival, fileUrl) => {
 export const generateContributionSlip = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // --- Fetch Contribution ---
+  // --- Fetch contribution ---
   const contribution = await Contribution.findById(id)
     .populate("contributorId", "name address category phoneNumber")
     .populate("festivalId", "name year");
@@ -399,11 +398,9 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
     ? path.join(process.cwd(), "public", contribution.slipPath)
     : null;
 
-  // --- Return existing slip if present on disk ---
+  // --- Return existing slip if present ---
   if (slipFilePath && fs.existsSync(slipFilePath)) {
     const fileUrl = `${req.protocol}://${req.get("host")}${contribution.slipPath}`;
-
-    // Send WhatsApp if contributor has phone number
     await sendWhatsAppReceipt(contribution.contributorId, contribution.festivalId, fileUrl);
 
     return res
@@ -417,64 +414,100 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
       );
   }
 
-  // --- Load HTML Template ---
-  const templatePath = path.join(process.cwd(), "templates/contributionSlip.html");
-  if (!fs.existsSync(templatePath)) {
-    return res.status(500).json(new ApiResponse(500, {}, "Slip template not found"));
-  }
+  // --- Create new PDF ---
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595, 842]); // A4
+  const { width, height } = page.getSize();
 
-  let html = fs.readFileSync(templatePath, "utf8");
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  // --- Replace placeholders ---
-  html = html
-    .replace("{{festivalName}}", contribution.festivalId.name)
-    .replace("{{festivalYear}}", contribution.festivalId.year)
-    .replace("{{receiptNo}}", contribution._id.toString().slice(-4))
-    .replace("{{date}}", new Date(contribution.date).toLocaleDateString())
-    .replace("{{status}}", contribution.status)
-    .replace("{{statusClass}}", contribution.status === "Pending" ? "pending" : "approved")
-    .replace("{{contributorName}}", contribution.contributorId.name)
-    .replace("{{address}}", contribution.contributorId.address || "-")
-    .replace("{{category}}", contribution.contributorId.category)
-    .replace("{{type}}", contribution.type);
+  let y = height - 60;
 
+  const drawText = (text, x, yPos, fontSize = 12, color = rgb(0, 0, 0), fontToUse = font) => {
+    page.drawText(text, { x, y: yPos, size: fontSize, font: fontToUse, color });
+  };
+
+  const drawLine = (yPos) => {
+    page.drawLine({
+      start: { x: 40, y: yPos },
+      end: { x: width - 40, y: yPos },
+      thickness: 1,
+      color: rgb(0.7, 0.7, 0.7),
+    });
+  };
+
+  // --- Header ---
+  drawText(
+    `${contribution.festivalId.name} ${contribution.festivalId.year}`,
+    150,
+    y,
+    24,
+    rgb(0.85, 0.11, 0.36),
+    boldFont,
+  );
+  y -= 30;
+  drawText("Contribution Receipt", 180, y, 16, rgb(0.3, 0.3, 0.3));
+  y -= 25;
+  drawLine(y);
+  y -= 20;
+
+  // --- Contribution Info ---
+  drawText(`Receipt No: #${contribution._id.toString().slice(-4)}`, 50, y);
+  y -= 20;
+  drawText(`Date: ${new Date(contribution.date).toLocaleDateString()}`, 50, y);
+  y -= 20;
+  const statusColor = contribution.status === "Pending" ? rgb(1, 0.65, 0) : rgb(0, 0.7, 0);
+  drawText(`Status: ${contribution.status}`, 50, y, 12, statusColor, boldFont);
+  y -= 25;
+  drawLine(y);
+  y -= 20;
+
+  // --- Contributor Details ---
+  drawText("Contributor Details", 50, y, 14, rgb(0.2, 0.2, 0.2), boldFont);
+  y -= 20;
+  drawText(`Name: ${contribution.contributorId.name}`, 50, y);
+  y -= 20;
+  drawText(`Address: ${contribution.contributorId.address || "-"}`, 50, y);
+  y -= 20;
+  drawText(`Category: ${contribution.contributorId.category}`, 50, y);
+  y -= 25;
+  drawLine(y);
+  y -= 20;
+
+  // --- Contribution Details ---
+  drawText("Contribution Details", 50, y, 14, rgb(0.2, 0.2, 0.2), boldFont);
+  y -= 20;
+  drawText(`Type: ${contribution.type}`, 50, y);
+  y -= 20;
   if (contribution.type === "cash") {
-    html = html
-      .replace("{{#ifCash}}", "")
-      .replace("{{amount}}", contribution.amount.toLocaleString("en-IN"))
-      .replace("{{/ifCash}}", "")
-      .replace("{{#ifItem}}", "<!--")
-      .replace("{{/ifItem}}", "-->");
+    drawText(
+      `Amount: Rs.${contribution.amount.toLocaleString("en-IN")}`,
+      50,
+      y,
+      12,
+      rgb(0.85, 0.11, 0.36),
+      boldFont,
+    );
   } else {
-    html = html
-      .replace("{{#ifItem}}", "")
-      .replace("{{itemName}}", contribution.itemName)
-      .replace("{{/ifItem}}", "")
-      .replace("{{#ifCash}}", "<!--")
-      .replace("{{/ifCash}}", "-->");
+    drawText(`Item: ${contribution.itemName}`, 50, y);
   }
+  y -= 25;
+  drawLine(y);
+  y -= 30;
 
-  // --- Prepare PDF Path ---
+  // // --- Footer / Signatures ---
+  // drawText("Contributor Signature", 50, y, 12, rgb(0, 0, 0));
+  // drawLine(y - 5);
+  // drawText("Authorized Signature", width - 250, y, 12, rgb(0, 0, 0));
+  // drawLine(width - 250, y - 5);
+
+  // --- Save PDF ---
   const fileId = uuidv4();
   const pdfPath = path.join(process.cwd(), `public/slips/${fileId}.pdf`);
   fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
-
-  // --- Launch Puppeteer using chrome-aws-lambda ---
-  const browser = await puppeteer.launch({
-    executablePath: await chromium.executablePath,
-    headless: chromium.headless,
-    args: chromium.args,
-  });
-
-  try {
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    await page.pdf({ path: pdfPath, format: "A4", printBackground: true });
-  } catch (err) {
-    throw new Error("Failed to generate PDF: " + err.message);
-  } finally {
-    await browser.close();
-  }
+  const pdfBytes = await pdfDoc.save();
+  fs.writeFileSync(pdfPath, pdfBytes);
 
   // --- Update Contribution ---
   contribution.slipPath = `/slips/${fileId}.pdf`;
@@ -482,7 +515,7 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
 
   const fileUrl = `${req.protocol}://${req.get("host")}${contribution.slipPath}`;
 
-  // --- Optional: Send WhatsApp Receipt ---
+  // --- Optional WhatsApp ---
   await sendWhatsAppReceipt(contribution.contributorId, contribution.festivalId, fileUrl);
 
   return res
