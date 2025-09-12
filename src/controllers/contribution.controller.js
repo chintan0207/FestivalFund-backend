@@ -4,7 +4,8 @@ import { ApiResponse } from "../utils/api-response.js";
 import { Contribution } from "../models/contribution.model.js";
 import { updateFestivalStats } from "../utils/utility.js";
 import { Contributor } from "../models/contributor.model.js";
-import puppeteer from "puppeteer";
+import chromium from "chrome-aws-lambda";
+import puppeteer from "puppeteer-core";
 import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
@@ -398,9 +399,13 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
     ? path.join(process.cwd(), "public", contribution.slipPath)
     : null;
 
-  // --- Return existing slip if present ---
+  // --- Return existing slip if present on disk ---
   if (slipFilePath && fs.existsSync(slipFilePath)) {
     const fileUrl = `${req.protocol}://${req.get("host")}${contribution.slipPath}`;
+
+    // Send WhatsApp if contributor has phone number
+    await sendWhatsAppReceipt(contribution.contributorId, contribution.festivalId, fileUrl);
+
     return res
       .status(200)
       .json(
@@ -454,13 +459,12 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
   const pdfPath = path.join(process.cwd(), `public/slips/${fileId}.pdf`);
   fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
 
-process.env.PUPPETEER_CACHE_DIR = "/tmp/puppeteer-cache"; 
-
-const browser = await puppeteer.launch({
-  headless: "new",
-  args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-});
-
+  // --- Launch Puppeteer using chrome-aws-lambda ---
+  const browser = await puppeteer.launch({
+    executablePath: await chromium.executablePath,
+    headless: chromium.headless,
+    args: chromium.args,
+  });
 
   try {
     const page = await browser.newPage();
@@ -479,11 +483,7 @@ const browser = await puppeteer.launch({
   const fileUrl = `${req.protocol}://${req.get("host")}${contribution.slipPath}`;
 
   // --- Optional: Send WhatsApp Receipt ---
-  try {
-    await sendWhatsAppReceipt(contribution.contributorId, contribution.festivalId, fileUrl);
-  } catch (err) {
-    console.error("WhatsApp sending error:", err.message);
-  }
+  await sendWhatsAppReceipt(contribution.contributorId, contribution.festivalId, fileUrl);
 
   return res
     .status(200)
