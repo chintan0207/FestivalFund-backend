@@ -20,17 +20,14 @@ const contributionSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: AvailableContributionTypes,
-      required: true, // "cash" or "item"
+      required: true,
     },
     status: {
       type: String,
       enum: AvailableContributionStatuses,
       default: ContributionStatusEnum.PENDING,
     },
-    date: {
-      type: Date,
-      default: Date.now,
-    },
+    date: { type: Date, default: Date.now },
 
     // For cash
     amount: Number,
@@ -39,6 +36,8 @@ const contributionSchema = new mongoose.Schema(
     itemName: String,
     quantity: Number,
     estimatedValue: Number,
+
+    slipPath: { type: String, default: "" },
   },
   { timestamps: true },
 );

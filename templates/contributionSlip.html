@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Contribution Receipt</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #fff;
+        padding: 40px;
+        color: #000;
+      }
+      h1 {
+        text-align: center;
+        color: #d81b60;
+        margin-bottom: 4px;
+      }
+      h3 {
+        text-align: center;
+        color: #555;
+        margin-top: 0;
+      }
+      .line {
+        border-top: 1px dashed #aaa;
+        margin: 15px 0;
+      }
+      .label {
+        font-weight: bold;
+      }
+      .highlight {
+        color: #d81b60;
+        font-weight: bold;
+      }
+      .pending {
+        color: orange;
+        font-weight: bold;
+      }
+      .approved {
+        color: green;
+        font-weight: bold;
+      }
+      .section-title {
+        font-size: 14px;
+        color: #333;
+        margin-top: 10px;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      .footer {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 40px;
+        font-size: 12px;
+      }
+      .signature {
+        border-top: 1px solid #000;
+        width: 200px;
+        text-align: center;
+        padding-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>{{festivalName}} {{festivalYear}}</h1>
+    <h3>Contribution Receipt</h3>
+    <div class="line"></div>
+
+    <p><span class="label">Receipt No:</span> #{{receiptNo}}</p>
+    <p><span class="label">Date:</span> {{date}}</p>
+    <p>
+      <span class="label">Status:</span>
+      <span class="{{statusClass}}">{{status}}</span>
+    </p>
+
+    <div class="line"></div>
+    <div class="section-title">Contributor Details</div>
+    <p><span class="label">Name:</span> {{contributorName}}</p>
+    <p><span class="label">Address:</span> {{address}}</p>
+    <p><span class="label">Category:</span> {{category}}</p>
+
+    <div class="line"></div>
+    <div class="section-title">Contribution Details</div>
+    <p><span class="label">Type:</span> {{type}}</p>
+    {{#ifCash}}
+    <p><span class="label">Amount:</span> <span class="highlight">₹{{amount}}</span></p>
+    {{/ifCash}} {{#ifItem}}
+    <p><span class="label">Item:</span> {{itemName}}</p>
+    {{/ifItem}}
+
+    <div class="line"></div>
+    <div class="footer">
+      <div class="signature">Contributor Signature</div>
+      <div class="signature">Authorized Signature</div>
+    </div>
+  </body>
+</html>

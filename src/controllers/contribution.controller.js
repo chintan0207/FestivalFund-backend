@@ -4,6 +4,16 @@ import { ApiResponse } from "../utils/api-response.js";
 import { Contribution } from "../models/contribution.model.js";
 import { updateFestivalStats } from "../utils/utility.js";
 import { Contributor } from "../models/contributor.model.js";
+import puppeteer from "puppeteer";
+import fs from "fs";
+import path from "path";
+import { v4 as uuidv4 } from "uuid";
+import twilio from "twilio";
+
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const whatsappFrom = "whatsapp:+14155238886";
+const client = twilio(accountSid, authToken);
 
 // GET all contributions with filters and pagination
 export const getAllContributions = asyncHandler(async (req, res) => {
@@ -265,7 +275,7 @@ export const createContribution = asyncHandler(async (req, res) => {
       201,
       {
         contribution: responseData,
-        festivalStats: updatedStats, 
+        festivalStats: updatedStats,
       },
       "Contribution recorded",
     ),
@@ -356,6 +366,21 @@ export const deleteContribution = asyncHandler(async (req, res) => {
   );
 });
 
+const sendWhatsAppReceipt = async (contributor, festival, fileUrl) => {
+  if (!contributor.phoneNumber) return;
+
+  try {
+    await client.messages.create({
+      from: whatsappFrom,
+      to: `whatsapp:+91${contributor.phoneNumber}`,
+      body: `Dear ${contributor.name}, here is your contribution receipt for ${festival.name} ${festival.year}. 🙏`,
+      mediaUrl: [fileUrl],
+    });
+  } catch (err) {
+    console.error("Error sending WhatsApp:", err.message);
+  }
+};
+
 // GENERATE slip for a contribution
 export const generateContributionSlip = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -368,8 +393,91 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
     return res.status(404).json(new ApiResponse(404, {}, "Contribution not found"));
   }
 
-  // In real use-case, generate PDF or print-ready format
-  res
+  const slipFilePath = contribution.slipPath
+    ? path.join(process.cwd(), "public", contribution.slipPath)
+    : null;
+
+  // ✅ If slipPath exists in DB, check if file exists on disk
+  if (slipFilePath && fs.existsSync(slipFilePath)) {
+    const fileUrl = `${req.protocol}://${req.get("host")}${contribution.slipPath}`;
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { slipPath: contribution.slipPath, slipUrl: fileUrl },
+          "Slip already exists",
+        ),
+      );
+  }
+
+  // --- Generate new slip if not exists or missing on disk ---
+  const templatePath = path.join(process.cwd(), "templates/contributionSlip.html");
+  let html = fs.readFileSync(templatePath, "utf8");
+
+  // Replace placeholders
+  html = html
+    .replace("{{festivalName}}", contribution.festivalId.name)
+    .replace("{{festivalYear}}", contribution.festivalId.year)
+    .replace("{{receiptNo}}", contribution._id.toString().slice(-4))
+    .replace("{{date}}", new Date(contribution.date).toLocaleDateString())
+    .replace("{{status}}", contribution.status)
+    .replace("{{statusClass}}", contribution.status === "Pending" ? "pending" : "approved")
+    .replace("{{contributorName}}", contribution.contributorId.name)
+    .replace("{{address}}", contribution.contributorId.address || "-")
+    .replace("{{category}}", contribution.contributorId.category)
+    .replace("{{type}}", contribution.type);
+
+  if (contribution.type === "cash") {
+    html = html
+      .replace("{{#ifCash}}", "")
+      .replace("{{amount}}", contribution.amount.toLocaleString("en-IN"))
+      .replace("{{/ifCash}}", "")
+      .replace("{{#ifItem}}", "<!--")
+      .replace("{{/ifItem}}", "-->");
+  } else {
+    html = html
+      .replace("{{#ifItem}}", "")
+      .replace("{{itemName}}", contribution.itemName)
+      .replace("{{/ifItem}}", "")
+      .replace("{{#ifCash}}", "<!--")
+      .replace("{{/ifCash}}", "-->");
+  }
+
+  const fileId = uuidv4();
+  const pdfPath = path.join(process.cwd(), `public/slips/${fileId}.pdf`);
+  fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
+
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: "networkidle0" });
+  await page.pdf({ path: pdfPath, format: "A4", printBackground: true });
+  await browser.close();
+
+  // Update contribution with new slip path
+  contribution.slipPath = `/slips/${fileId}.pdf`;
+  await contribution.save();
+
+  const fileUrl = `${req.protocol}://${req.get("host")}${contribution.slipPath}`;
+
+  // Optional: Send WhatsApp
+  try {
+    await sendWhatsAppReceipt(contribution.contributorId, contribution.festivalId, fileUrl);
+  } catch (err) {
+    console.error("Error sending WhatsApp:", err.message);
+  }
+
+  return res
     .status(200)
-    .json(new ApiResponse(200, { slip: contribution }, `Slip generated for contribution `));
+    .json(
+      new ApiResponse(
+        200,
+        { slipPath: contribution.slipPath, slipUrl: fileUrl },
+        "Slip generated successfully",
+      ),
+    );
 });
