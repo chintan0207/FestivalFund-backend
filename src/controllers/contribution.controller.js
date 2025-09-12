@@ -454,12 +454,13 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
   const pdfPath = path.join(process.cwd(), `public/slips/${fileId}.pdf`);
   fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
 
-  // --- Launch Puppeteer using system Chrome (production-ready) ---
-  const browser = await puppeteer.launch({
-    headless: "new",
-    executablePath: "/usr/bin/google-chrome", // must exist on Render
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-  });
+process.env.PUPPETEER_CACHE_DIR = "/tmp/puppeteer-cache"; 
+
+const browser = await puppeteer.launch({
+  headless: "new",
+  args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+});
+
 
   try {
     const page = await browser.newPage();
