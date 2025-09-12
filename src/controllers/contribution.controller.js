@@ -401,7 +401,7 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
   // --- Return existing slip if present ---
   if (slipFilePath && fs.existsSync(slipFilePath)) {
     const fileUrl = `${req.protocol}://${req.get("host")}${contribution.slipPath}`;
-    await sendWhatsAppReceipt(contribution.contributorId, contribution.festivalId, fileUrl);
+    // await sendWhatsAppReceipt(contribution.contributorId, contribution.festivalId, fileUrl);
 
     return res
       .status(200)
