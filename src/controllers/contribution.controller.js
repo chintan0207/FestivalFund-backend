@@ -385,6 +385,7 @@ const sendWhatsAppReceipt = async (contributor, festival, fileUrl) => {
 export const generateContributionSlip = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
+  // --- Fetch Contribution ---
   const contribution = await Contribution.findById(id)
     .populate("contributorId", "name address category phoneNumber")
     .populate("festivalId", "name year");
@@ -397,10 +398,9 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
     ? path.join(process.cwd(), "public", contribution.slipPath)
     : null;
 
-  // ✅ If slipPath exists in DB, check if file exists on disk
+  // --- Return existing slip if present ---
   if (slipFilePath && fs.existsSync(slipFilePath)) {
     const fileUrl = `${req.protocol}://${req.get("host")}${contribution.slipPath}`;
-
     return res
       .status(200)
       .json(
@@ -412,11 +412,15 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
       );
   }
 
-  // --- Generate new slip if not exists or missing on disk ---
+  // --- Load HTML Template ---
   const templatePath = path.join(process.cwd(), "templates/contributionSlip.html");
+  if (!fs.existsSync(templatePath)) {
+    return res.status(500).json(new ApiResponse(500, {}, "Slip template not found"));
+  }
+
   let html = fs.readFileSync(templatePath, "utf8");
 
-  // Replace placeholders
+  // --- Replace placeholders ---
   html = html
     .replace("{{festivalName}}", contribution.festivalId.name)
     .replace("{{festivalYear}}", contribution.festivalId.year)
@@ -445,30 +449,39 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
       .replace("{{/ifCash}}", "-->");
   }
 
+  // --- Prepare PDF Path ---
   const fileId = uuidv4();
   const pdfPath = path.join(process.cwd(), `public/slips/${fileId}.pdf`);
   fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
 
+  // --- Launch Puppeteer using system Chrome (production-ready) ---
   const browser = await puppeteer.launch({
     headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    executablePath: "/usr/bin/google-chrome", // must exist on Render
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
   });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: "networkidle0" });
-  await page.pdf({ path: pdfPath, format: "A4", printBackground: true });
-  await browser.close();
 
-  // Update contribution with new slip path
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.pdf({ path: pdfPath, format: "A4", printBackground: true });
+  } catch (err) {
+    throw new Error("Failed to generate PDF: " + err.message);
+  } finally {
+    await browser.close();
+  }
+
+  // --- Update Contribution ---
   contribution.slipPath = `/slips/${fileId}.pdf`;
   await contribution.save();
 
   const fileUrl = `${req.protocol}://${req.get("host")}${contribution.slipPath}`;
 
-  // Optional: Send WhatsApp
+  // --- Optional: Send WhatsApp Receipt ---
   try {
     await sendWhatsAppReceipt(contribution.contributorId, contribution.festivalId, fileUrl);
   } catch (err) {
-    console.error("Error sending WhatsApp:", err.message);
+    console.error("WhatsApp sending error:", err.message);
   }
 
   return res
