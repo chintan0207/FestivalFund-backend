@@ -3,6 +3,10 @@ import { ApiResponse } from "../utils/api-response.js";
 import { Contributor } from "../models/contributor.model.js";
 import mongoose from "mongoose";
 import { ApiError } from "../utils/api-error.js";
+import fs from "fs";
+import path from "path";
+import puppeteer from "puppeteer";
+import { v4 as uuidv4 } from "uuid";
 
 export const createContributor = asyncHandler(async (req, res) => {
   const { name, address, category, festivalId, phoneNumber } = req.body;
@@ -212,4 +216,84 @@ export const deleteContributor = asyncHandler(async (req, res) => {
   await contributor.deleteOne();
 
   res.status(200).json(new ApiResponse(200, null, `Contributor deleted `));
+});
+
+export const allContributorsPdf = asyncHandler(async (req, res) => {
+  // --- Fetch all contributors ---
+  const contributors = await Contributor.find({}).populate("festivalId", "name year");
+
+  if (!contributors.length) {
+    return res.status(404).json(new ApiResponse(404, {}, "No contributors found"));
+  }
+
+  // --- Compute category-wise counts ---
+  const categoryCounts = contributors.reduce((acc, c) => {
+    const category = typeof c.category === "string" ? c.category : String(c.category);
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {});
+
+  // --- Build contributor rows ---
+  const contributorRows = contributors
+    .map(
+      (c) => `
+    <tr>
+      <td>${c.name}</td>
+      <td>${c.phoneNumber || "-"}</td>
+      <td>${c.category}</td>
+      <td>${c.address || "-"}</td>
+    </tr>
+  `,
+    )
+    .join("");
+
+  // --- Build category count rows ---
+  const categoryRows = Object.entries(categoryCounts)
+    .map(
+      ([category, count]) => `
+    <tr>
+      <td>${category}</td>
+      <td>${count}</td>
+    </tr>
+  `,
+    )
+    .join("");
+
+  // --- Load template ---
+  const htmlTemplate = fs.readFileSync(
+    path.join(process.cwd(), "templates/allContributors.html"),
+    "utf-8",
+  );
+
+  // --- Replace placeholders ---
+  const html = htmlTemplate
+    .replace(/{{contributorRows}}/g, contributorRows)
+    .replace(/{{categoryRows}}/g, categoryRows);
+
+  // --- Generate PDF ---
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: "networkidle0" });
+
+  const fileId = uuidv4();
+  const pdfPath = path.join(process.cwd(), `public/reports/all_contributors_${fileId}.pdf`);
+  fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
+
+  await page.pdf({
+    path: pdfPath,
+    format: "A4",
+    printBackground: true,
+    margin: { top: "20px", bottom: "20px", left: "20px", right: "20px" },
+  });
+
+  await browser.close();
+
+  const fileUrl = `${req.protocol}://${req.get("host")}/reports/all_contributors_${fileId}.pdf`;
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { url: fileUrl }, "All contributors PDF generated"));
 });

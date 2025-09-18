@@ -38,6 +38,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use("/slips", express.static(path.join(process.cwd(), "public/slips")));
+app.use("/reports", express.static(path.join(process.cwd(), "public/reports")));
+
 
 app.get("/", (req, res) => {
   res.status(200).json({

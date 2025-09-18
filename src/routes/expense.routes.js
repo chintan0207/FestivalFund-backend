@@ -5,6 +5,7 @@ import {
   updateExpense,
   deleteExpense,
   getExpenseById,
+  expensesPdfByFestival,
 } from "../controllers/expense.controller.js";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 
@@ -15,5 +16,6 @@ router.post("/", verifyJwt, createExpense);
 router.patch("/:id", verifyJwt, updateExpense);
 router.get("/:id", verifyJwt, getExpenseById);
 router.delete("/:id", verifyJwt, deleteExpense);
+router.get("/pdf/:festivalId", verifyJwt, expensesPdfByFestival);
 
 export default router;

@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import fs from "fs";
+import path from "path";
+import puppeteer from "puppeteer";
+import { v4 as uuidv4 } from "uuid";
 import { Expense } from "../models/expense.model.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiError } from "../utils/api-error.js";
@@ -226,4 +230,89 @@ export const deleteExpense = asyncHandler(async (req, res) => {
   res
     .status(200)
     .json(new ApiResponse(200, { festivalStats: updatedStats }, "Expense deleted successfully"));
+});
+
+export const expensesPdfByFestival = asyncHandler(async (req, res) => {
+  const { festivalId } = req.params;
+
+  // --- Fetch expenses ---
+  const expenses = await Expense.find({ festivalId });
+
+  if (!expenses.length) {
+    return res.status(404).json(new ApiResponse(404, {}, "No expenses found for this festival"));
+  }
+
+  // --- Get updated stats (includes categoryTotals) ---
+  const stats = await updateFestivalStats(festivalId);
+
+  // --- Load template ---
+  const htmlTemplate = fs.readFileSync(
+    path.join(process.cwd(), "templates/expensesByFestival.html"),
+    "utf-8",
+  );
+
+  // --- Build rows for expenses ---
+  const expenseRows = expenses
+    .map(
+      (e) => `
+    <tr>
+      <td>${e.category}</td>
+      <td class="amount">₹${e.amount.toLocaleString("en-IN")}</td>
+      <td>${new Date(e.date).toLocaleDateString("en-IN")}</td>
+      <td>${e.description || "-"}</td>
+    </tr>
+  `,
+    )
+    .join("");
+
+  // --- Build category totals rows ---
+  const categoryTotalsRows = Object.entries(stats.categoryTotals || {})
+    .map(
+      ([category, total]) => `
+    <tr>
+      <td>${category}</td>
+      <td class="amount">₹${total.toLocaleString("en-IN")}</td>
+    </tr>
+  `,
+    )
+    .join("");
+
+  // --- Replace placeholders ---
+  const html = htmlTemplate
+    .replace(/{{festivalName}}/g, expenses[0]?.festivalId?.name || "Festival")
+    .replace(/{{festivalYear}}/g, expenses[0]?.festivalId?.year || "")
+    .replace(/{{openingBalance}}/g, stats.openingBalance.toLocaleString("en-IN"))
+    .replace(/{{totalCollected}}/g, stats.totalCollected.toLocaleString("en-IN"))
+    .replace(/{{pendingAmount}}/g, stats.pendingAmount.toLocaleString("en-IN"))
+    .replace(/{{totalExpenses}}/g, stats.totalExpenses.toLocaleString("en-IN"))
+    .replace(/{{currentBalance}}/g, stats.currentBalance.toLocaleString("en-IN"))
+    .replace(/{{expenseRows}}/g, expenseRows)
+    .replace(/{{categoryTotalsRows}}/g, categoryTotalsRows);
+
+  // --- Generate PDF ---
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: "networkidle0" });
+
+  const fileId = uuidv4();
+  const pdfPath = path.join(process.cwd(), `public/reports/expenses_${fileId}.pdf`);
+  fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
+
+  await page.pdf({
+    path: pdfPath,
+    format: "A4",
+    printBackground: true,
+    margin: { top: "20px", bottom: "20px", left: "20px", right: "20px" },
+  });
+
+  await browser.close();
+
+  const fileUrl = `${req.protocol}://${req.get("host")}/reports/expenses_${fileId}.pdf`;
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { url: fileUrl }, "Festival expense PDF generated"));
 });

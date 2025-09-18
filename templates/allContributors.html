@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>All Contributors Report</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #fff;
+        color: #333;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #d81b60;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 30px;
+      }
+      thead {
+        background: #f3f4f6;
+      }
+      th,
+      td {
+        padding: 10px;
+        text-align: left;
+        font-size: 13px;
+      }
+      th {
+        font-weight: bold;
+        color: #444;
+        border-bottom: 2px solid #e5e7eb;
+      }
+      tr:nth-child(even) {
+        background: #fafafa;
+      }
+      tr:hover {
+        background: #f9f9f9;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>All Contributors Report</h1>
+
+    <h2>Contributor Count by Category</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{categoryRows}}
+      </tbody>
+    </table>
+
+    <h2>Contributors List</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Phone Number</th>
+          <th>Category</th>
+          <th>Address</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{contributorRows}}
+      </tbody>
+    </table>
+  </body>
+</html>

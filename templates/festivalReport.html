@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{{festivalName}} Report</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #fff;
+        color: #333;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #d81b60;
+      }
+      .stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 25px;
+      }
+      .card {
+        flex: 1 1 30%;
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 12px 15px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+      .card h3 {
+        margin: 0;
+        font-size: 14px;
+        color: #666;
+        font-weight: 600;
+      }
+      .card p {
+        margin: 5px 0 0;
+        font-size: 16px;
+        font-weight: bold;
+        color: #111;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        margin-bottom: 30px;
+      }
+      thead {
+        background: #f3f4f6;
+      }
+      th,
+      td {
+        padding: 10px;
+        text-align: left;
+        font-size: 13px;
+      }
+      th {
+        font-weight: bold;
+        color: #444;
+        border-bottom: 2px solid #e5e7eb;
+      }
+      tr:nth-child(even) {
+        background: #fafafa;
+      }
+      tr:hover {
+        background: #f9f9f9;
+      }
+      .status {
+        padding: 4px 10px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 500;
+        display: inline-block;
+      }
+      .deposited {
+        background: #dcfce7;
+        color: #15803d;
+      }
+      .pending {
+        background: #fef9c3;
+        color: #a16207;
+      }
+      .rejected {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+      .amount {
+        font-weight: bold;
+        color: #15803d;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>{{festivalName}} {{festivalYear}} - Festival Report</h1>
+
+    <div class="stats">
+      <div class="card">
+        <h3>Opening Balance</h3>
+        <p>₹{{openingBalance}}</p>
+      </div>
+      <div class="card">
+        <h3>Total Collected</h3>
+        <p>₹{{totalCollected}}</p>
+      </div>
+      <div class="card">
+        <h3>Pending Contributions</h3>
+        <p>₹{{pendingAmount}}</p>
+      </div>
+      <div class="card">
+        <h3>Total Expenses</h3>
+        <p>₹{{totalExpenses}}</p>
+      </div>
+      <div class="card">
+        <h3>Current Balance</h3>
+        <p>₹{{currentBalance}}</p>
+      </div>
+    </div>
+
+    <h2>Expenses by Category</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Total Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{categoryTotalsRows}}
+      </tbody>
+    </table>
+
+    <h2>Contributions</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Contributor</th>
+          <th>Amount / Item</th>
+          <th>Date</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{contributionRows}}
+      </tbody>
+    </table>
+
+    <h2>Expenses</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Amount</th>
+          <th>Date</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{expenseRows}}
+      </tbody>
+    </table>
+  </body>
+</html>

@@ -4,7 +4,7 @@ import { ApiResponse } from "../utils/api-response.js";
 import { Contribution } from "../models/contribution.model.js";
 import { updateFestivalStats } from "../utils/utility.js";
 import { Contributor } from "../models/contributor.model.js";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import puppeteer from "puppeteer";
 import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
@@ -381,7 +381,6 @@ const sendWhatsAppReceipt = async (contributor, festival, fileUrl) => {
   }
 };
 
-// GENERATE slip for a contribution
 export const generateContributionSlip = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -401,8 +400,6 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
   // --- Return existing slip if present ---
   if (slipFilePath && fs.existsSync(slipFilePath)) {
     const fileUrl = `${req.protocol}://${req.get("host")}${contribution.slipPath}`;
-    // await sendWhatsAppReceipt(contribution.contributorId, contribution.festivalId, fileUrl);
-
     return res
       .status(200)
       .json(
@@ -414,108 +411,56 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
       );
   }
 
-  // --- Create new PDF ---
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595, 842]); // A4
-  const { width, height } = page.getSize();
-
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-  let y = height - 60;
-
-  const drawText = (text, x, yPos, fontSize = 12, color = rgb(0, 0, 0), fontToUse = font) => {
-    page.drawText(text, { x, y: yPos, size: fontSize, font: fontToUse, color });
-  };
-
-  const drawLine = (yPos) => {
-    page.drawLine({
-      start: { x: 40, y: yPos },
-      end: { x: width - 40, y: yPos },
-      thickness: 1,
-      color: rgb(0.7, 0.7, 0.7),
-    });
-  };
-
-  // --- Header ---
-  drawText(
-    `${contribution.festivalId.name} ${contribution.festivalId.year}`,
-    150,
-    y,
-    24,
-    rgb(0.85, 0.11, 0.36),
-    boldFont,
+  // --- Prepare HTML with data ---
+  const htmlTemplate = fs.readFileSync(
+    path.join(process.cwd(), "templates/contributionSlip.html"),
+    "utf-8",
   );
-  y -= 30;
-  drawText("Contribution Receipt", 180, y, 16, rgb(0.3, 0.3, 0.3));
-  y -= 25;
-  drawLine(y);
-  y -= 20;
 
-  // --- Contribution Info ---
-  drawText(`Receipt No: #${contribution._id.toString().slice(-4)}`, 50, y);
-  y -= 20;
-  drawText(`Date: ${new Date(contribution.date).toLocaleDateString()}`, 50, y);
-  y -= 20;
-  const statusColor = contribution.status === "Pending" ? rgb(1, 0.65, 0) : rgb(0, 0.7, 0);
-  drawText(`Status: ${contribution.status}`, 50, y, 12, statusColor, boldFont);
-  y -= 25;
-  drawLine(y);
-  y -= 20;
+  const html = htmlTemplate
+    .replace(/{{festivalName}}/g, contribution.festivalId.name)
+    .replace(/{{festivalYear}}/g, contribution.festivalId.year)
+    .replace(/{{receiptNo}}/g, contribution._id.toString().slice(-4))
+    .replace(/{{date}}/g, new Date(contribution.date).toLocaleDateString("en-IN"))
+    .replace(/{{status}}/g, contribution.status)
+    .replace(/{{statusClass}}/g, contribution.status === "Pending" ? "pending" : "approved")
+    .replace(/{{contributorName}}/g, contribution.contributorId.name)
+    .replace(/{{address}}/g, contribution.contributorId.address || "-")
+    .replace(/{{category}}/g, contribution.contributorId.category)
+    .replace(/{{type}}/g, contribution.type)
+    .replace(/{{amount}}/g, contribution.amount?.toLocaleString("en-IN") || "")
+    .replace(/{{itemName}}/g, contribution.itemName || "")
+    .replace(/{{#ifCash}}([\s\S]*?){{\/ifCash}}/g, contribution.type === "cash" ? "$1" : "")
+    .replace(/{{#ifItem}}([\s\S]*?){{\/ifItem}}/g, contribution.type === "item" ? "$1" : "");
 
-  // --- Contributor Details ---
-  drawText("Contributor Details", 50, y, 14, rgb(0.2, 0.2, 0.2), boldFont);
-  y -= 20;
-  drawText(`Name: ${contribution.contributorId.name}`, 50, y);
-  y -= 20;
-  drawText(`Address: ${contribution.contributorId.address || "-"}`, 50, y);
-  y -= 20;
-  drawText(`Category: ${contribution.contributorId.category}`, 50, y);
-  y -= 25;
-  drawLine(y);
-  y -= 20;
+  // --- Generate PDF with Puppeteer ---
+  const browser = await puppeteer.launch({
+    headless: "new", // or true
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: "networkidle0" });
 
-  // --- Contribution Details ---
-  drawText("Contribution Details", 50, y, 14, rgb(0.2, 0.2, 0.2), boldFont);
-  y -= 20;
-  drawText(`Type: ${contribution.type}`, 50, y);
-  y -= 20;
-  if (contribution.type === "cash") {
-    drawText(
-      `Amount: Rs.${contribution.amount.toLocaleString("en-IN")}`,
-      50,
-      y,
-      12,
-      rgb(0.85, 0.11, 0.36),
-      boldFont,
-    );
-  } else {
-    drawText(`Item: ${contribution.itemName}`, 50, y);
-  }
-  y -= 25;
-  drawLine(y);
-  y -= 30;
-
-  // // --- Footer / Signatures ---
-  // drawText("Contributor Signature", 50, y, 12, rgb(0, 0, 0));
-  // drawLine(y - 5);
-  // drawText("Authorized Signature", width - 250, y, 12, rgb(0, 0, 0));
-  // drawLine(width - 250, y - 5);
-
-  // --- Save PDF ---
   const fileId = uuidv4();
   const pdfPath = path.join(process.cwd(), `public/slips/${fileId}.pdf`);
   fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
-  const pdfBytes = await pdfDoc.save();
-  fs.writeFileSync(pdfPath, pdfBytes);
 
-  // --- Update Contribution ---
+  await page.pdf({
+    path: pdfPath,
+    format: "A4",
+    printBackground: true,
+    margin: { top: "20px", bottom: "20px", left: "30px", right: "30px" },
+  });
+
+  await browser.close();
+
+  // --- Update DB ---
   contribution.slipPath = `/slips/${fileId}.pdf`;
   await contribution.save();
 
   const fileUrl = `${req.protocol}://${req.get("host")}${contribution.slipPath}`;
 
-  // --- Optional WhatsApp ---
+  // --- Optional WhatsApp send ---
   await sendWhatsAppReceipt(contribution.contributorId, contribution.festivalId, fileUrl);
 
   return res
@@ -528,3 +473,90 @@ export const generateContributionSlip = asyncHandler(async (req, res) => {
       ),
     );
 });
+
+export const contributionsPdfByFestival = asyncHandler(async (req, res) => {
+  const { festivalId } = req.params;
+
+  const contributions = await Contribution.find({ festivalId })
+    .populate("contributorId", "name category")
+    .populate("festivalId", "name year");
+
+  if (!contributions.length) {
+    return res
+      .status(404)
+      .json(new ApiResponse(404, {}, "No contributions found for this festival"));
+  }
+
+  // --- Get updated stats ---
+  const updatedStats = await updateFestivalStats(festivalId);
+
+  // --- Load template ---
+  const htmlTemplate = fs.readFileSync(
+    path.join(process.cwd(), "templates/contributionsByFestival.html"),
+    "utf-8",
+  );
+
+  // --- Build rows for contributions ---
+  const rows = contributions
+    .map((c) => {
+      const statusClass =
+        c.status === "Deposited" ? "deposited" : c.status === "Pending" ? "pending" : "rejected";
+
+      const amountOrItem =
+        c.type === "cash"
+          ? `<span class="amount">₹${c.amount?.toLocaleString("en-IN")}</span>`
+          : c.itemName;
+
+      return `
+        <tr>
+          <td>
+            <div><strong>${c.contributorId?.name}</strong></div>
+            <div style="font-size: 12px; color: #666;">${c.contributorId?.category || ""}</div>
+          </td>
+          <td>${amountOrItem}</td>
+          <td>${new Date(c.date).toLocaleDateString("en-IN")}</td>
+          <td><span class="status ${statusClass}">${c.status}</span></td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  // --- Replace placeholders in template ---
+  const html = htmlTemplate
+    .replace(/{{festivalName}}/g, contributions[0].festivalId.name)
+    .replace(/{{festivalYear}}/g, contributions[0].festivalId.year)
+    .replace(/{{openingBalance}}/g, updatedStats.openingBalance.toLocaleString("en-IN"))
+    .replace(/{{totalCollected}}/g, updatedStats.totalCollected.toLocaleString("en-IN"))
+    .replace(/{{pendingAmount}}/g, updatedStats.pendingAmount.toLocaleString("en-IN"))
+    .replace(/{{totalExpenses}}/g, updatedStats.totalExpenses.toLocaleString("en-IN"))
+    .replace(/{{currentBalance}}/g, updatedStats.currentBalance.toLocaleString("en-IN"))
+    .replace(/{{rows}}/g, rows);
+
+  // --- Generate PDF with Puppeteer ---
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: "networkidle0" });
+
+  const fileId = uuidv4();
+  const pdfPath = path.join(process.cwd(), `public/reports/contributions_${fileId}.pdf`);
+  fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
+
+  await page.pdf({
+    path: pdfPath,
+    format: "A4",
+    printBackground: true,
+    margin: { top: "20px", bottom: "20px", left: "20px", right: "20px" },
+  });
+
+  await browser.close();
+
+  const fileUrl = `${req.protocol}://${req.get("host")}/reports/contributions_${fileId}.pdf`;
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { url: fileUrl }, "Festival contributions PDF generated"));
+});
+
