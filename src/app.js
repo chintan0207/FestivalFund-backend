@@ -4,7 +4,6 @@ import cookieParser from "cookie-parser";
 import { globalErrorHandler } from "./utils/global-error-handler.js";
 import path from "path";
 
-
 // Routes
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
@@ -14,9 +13,13 @@ import contributionRoutes from "./routes/contribution.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
 import reportRoutes from "./routes/report.routes.js";
 
-
 const app = express();
-const allowedOrigins = ["http://localhost:5173", "https://festivalfund-frontend.onrender.com"];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://festivalfund-frontend.onrender.com",
+  "https://festivalfund.live",
+  "www.festivalfund.live",
+];
 
 app.use(
   cors({
@@ -39,7 +42,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use("/slips", express.static(path.join(process.cwd(), "public/slips")));
 app.use("/reports", express.static(path.join(process.cwd(), "public/reports")));
-
 
 app.get("/", (req, res) => {
   res.status(200).json({
