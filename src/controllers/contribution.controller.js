@@ -535,8 +535,10 @@ export const contributionsPdfByFestival = asyncHandler(async (req, res) => {
   // --- Generate PDF with Puppeteer ---
   const browser = await puppeteer.launch({
     headless: "new",
+    executablePath: puppeteer.executablePath(), // <-- this ensures it uses the installed Chromium
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
+
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: "networkidle0" });
 
@@ -559,4 +561,3 @@ export const contributionsPdfByFestival = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, { url: fileUrl }, "Festival contributions PDF generated"));
 });
-
